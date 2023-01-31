@@ -90,7 +90,6 @@ function BookRender({ book, wordStart, wordEnd, setNewBook }: { book: string, wo
 			updateInput(onkeydown_keyEvent.key);
 		}
 	};
-	console.log(book, book.slice(Math.max(0, wordStart - WordRange), wordStart), rightInput,);
 	return (
 		<div className="App">
 			<p className='context'>{book.slice(Math.max(0, wordStart - WordRange), wordStart)}</p>
