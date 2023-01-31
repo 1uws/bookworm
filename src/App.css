@@ -1,6 +1,7 @@
 .App {
 	text-align: left;
 	font-size: 2vw;
+	white-space: pre-wrap;
 	background-color: #121212;
 	position: absolute;
 	top: 50%;
