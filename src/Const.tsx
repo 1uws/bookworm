@@ -390,8 +390,8 @@ const compositeDecorator = new CompositeDecorator([
 This composite decorator will first scan a given block of text for @-handle matches, then for hashtag matches.
 
 // Note: these aren't very good regexes, don't use them!
-const HANDLE_REGEX = /\@[\w]+/g;
-const HASHTAG_REGEX = /\#[\w\u0590-\u05ff]+/g;
+const HANDLE_REGEX = /splash @[ splash w]+/g;
+const HASHTAG_REGEX = /splash#[splash w splash u0590-splashu05ff]+/g;
 
 function handleStrategy(contentBlock, callback, contentState) {
   findWithRegex(HANDLE_REGEX, contentBlock, callback);
