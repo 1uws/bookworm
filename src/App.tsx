@@ -9,7 +9,7 @@ function App() {
 	const dispatch = useAppDispatch();
 	useEffect(() => {
 		data.forEach((book) => dispatch(bookAdd(book)));
-	}, []);
+	}, [dispatch]);
 	return (
 		<Book />
 	);
@@ -37,6 +37,7 @@ function Book() {
 		setWordEnd(() => cutWord.index + cutWord.word.length);
 		setBook(() => newBook);
 	}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	useEffect(() => { setNewBook(); }, [bookList]);
 	return (
 		<BookRender
