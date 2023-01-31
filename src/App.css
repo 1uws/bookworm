@@ -1,6 +1,6 @@
 .App {
 	text-align: left;
-	font-size: 20px;
+	font-size: 2vw;
 	background-color: #121212;
 	position: absolute;
 	top: 50%;
@@ -18,7 +18,17 @@
 	display: inline;
 }
 
+.hint {
+	color: #2E9598;
+	display: inline;
+}
+
 .input_wrong {
 	color: #ff0080;
+	display: inline;
+}
+
+.input_right {
+	color: #F7DB69;
 	display: inline;
 }
