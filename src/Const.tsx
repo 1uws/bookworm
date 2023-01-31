@@ -166,4 +166,824 @@ In structure, memory is allocated on stack
 Structures do not support inheritance
 Structure members cannot have null values
 Structure does not require constructor/destructor and members can be initialiazed automatically`,
+
+
+
+
+
+`Since the release of React 16.8, you can use Hooks as a way to work with EditorState without using a class.
+
+Copy
+import React from 'react';
+import ReactDOM from 'react-dom';
+import {Editor, EditorState} from 'draft-js';
+import 'draft-js/dist/Draft.css';
+
+function MyEditor() {
+  const [editorState, setEditorState] = React.useState(
+    () => EditorState.createEmpty(),
+  );
+
+  return <Editor editorState={editorState} onChange={setEditorState} />;
+}
+
+ReactDOM.render(<MyEditor />, document.getElementById('container'));`,
+
+`Because Draft.js supports unicode, you must have the following meta tag in the <head></head> block of your HTML file:
+
+<meta charset="utf-8" />
+Draft.css should be included when rendering the editor. Learn more about why.`,
+
+`State is therefore represented as a single immutable EditorState object, and onChange is implemented within the Editor core to provide this state value to the top level.`,
+
+`The EditorState object is a complete snapshot of the state of the editor, including contents, cursor, and undo/redo history. All changes to content and selection within the editor will create new EditorState objects. Note that this remains efficient due to data persistence across immutable objects.
+
+import {Editor, EditorState} from 'draft-js';
+
+const MyInput = () => {
+  const [editorState, setEditorState] = useState(() =>
+    EditorState.createEmpty(),
+  );
+
+  return <Editor editorState={editorState} onChange={setEditorState} />;
+};
+For any edits or selection changes that occur in the editor DOM, your onChange handler will execute with the latest EditorState object based on those changes.`,
+`The previous article introduced the EditorState object as a snapshot of the full state of the editor, as provided by the Editor core via the onChange prop.
+
+However, since your top-level React component is responsible for maintaining the state, you also have the freedom to apply changes to that EditorState object in any way you see fit.
+
+For inline and block style behavior, for example, the RichUtils module provides a number of useful functions to help manipulate state.
+
+Similarly, the Modifier module also provides a number of common operations that allow you to apply edits, including changes to text, styles, and more. This module is a suite of edit functions that compose simpler, smaller edit functions to return the desired EditorState object.
+
+For this example, we'll stick with RichUtils to demonstrate how to apply basic rich styling within the top-level component.`,
+`RichUtils and Key Commands#
+RichUtils has information about the core key commands available to web editors, such as Cmd+B (bold), Cmd+I (italic), and so on.
+
+We can observe and handle key commands via the handleKeyCommand prop, and hook these into RichUtils to apply or remove the desired style.
+
+import {Editor, EditorState, RichUtils} from 'draft-js';
+
+class MyEditor extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {editorState: EditorState.createEmpty()};
+    this.onChange = editorState => this.setState({editorState});
+    this.handleKeyCommand = this.handleKeyCommand.bind(this);
+  }
+
+  handleKeyCommand(command, editorState) {
+    const newState = RichUtils.handleKeyCommand(editorState, command);
+
+    if (newState) {
+      this.onChange(newState);
+      return 'handled';
+    }
+
+    return 'not-handled';
+  }
+
+  render() {
+    return (
+      <Editor
+        editorState={this.state.editorState}
+        handleKeyCommand={this.handleKeyCommand}
+        onChange={this.onChange}
+      />
+    );
+  }
+}
+handleKeyCommand
+
+The command argument supplied to handleKeyCommand is a string value, the name of the command to be executed. This is mapped from a DOM key event. The editorState argument represents the latest editor state as it might be changed internally by draft when handling the key. Use this instance of the editor state inside handleKeyCommand. See Advanced Topics - Key Binding for more on this, as well as details on why the function returns handled or not-handled.`,
+`Styling Controls in UI#
+Within your React component, you can add buttons or other controls to allow the user to modify styles within the editor. In the example above, we are using known key commands, but we can add more complex UI to provide these rich features.
+
+Here's a super-basic example with a "Bold" button to toggle the BOLD style.
+
+Copy
+class MyEditor extends React.Component {
+  // ...
+
+  _onBoldClick() {
+    this.onChange(RichUtils.toggleInlineStyle(this.state.editorState, 'BOLD'));
+  }
+
+  render() {
+    return (
+      <div>
+        <button onClick={this._onBoldClick.bind(this)}>Bold</button>
+        <Editor
+          editorState={this.state.editorState}
+          handleKeyCommand={this.handleKeyCommand}
+          onChange={this.onChange}
+        />
+      </div>
+    );
+  }
+}`,
+`Entities
+This article discusses the Entity system, which Draft uses for annotating ranges of text with metadata. Entities introduce levels of richness beyond styled text. Links, mentions, and embedded content can all be implemented using entities.
+
+In the Draft repository, the link editor and entity demo provide live code examples to help clarify how entities can be used, as well as their built-in behavior.
+
+The Entity API Reference provides details on the static methods to be used when creating, retrieving, or updating entity objects.
+
+For information about recent changes to the Entity API, and examples of how to update your application, see our v0.10 API Migration Guide.
+
+Introduction#
+An entity is an object that represents metadata for a range of text within a Draft editor. It has three properties:
+
+type: A string that indicates what kind of entity it is, e.g. 'LINK', 'MENTION', 'PHOTO'.
+mutability: Not to be confused with immutability a la immutable-js, this property denotes the behavior of a range of text annotated with this entity object when editing the text range within the editor. This is addressed in greater detail below.
+data: An optional object containing metadata for the entity. For instance, a 'LINK' entity might contain a data object that contains the href value for that link.
+All entities are stored in the ContentState record. The entities are referenced by key within ContentState and React components used to decorate annotated ranges. (We are currently deprecating a previous API for accessing Entities; see issue #839.)
+
+Using decorators or custom block components, you can add rich rendering to your editor based on entity metadata.
+
+Creating and Retrieving Entities#
+Entities should be created using contentState.createEntity, which accepts the three properties above as arguments. This method returns a ContentState record updated to include the newly created entity, then you can call contentState.getLastCreatedEntityKey to get the key of the newly created entity record.
+
+This key is the value that should be used when applying entities to your content. For instance, the Modifier module contains an applyEntity method:
+
+const contentState = editorState.getCurrentContent();
+const contentStateWithEntity = contentState.createEntity('LINK', 'MUTABLE', {
+  url: 'http://www.zombo.com',
+});
+const entityKey = contentStateWithEntity.getLastCreatedEntityKey();
+const contentStateWithLink = Modifier.applyEntity(
+  contentStateWithEntity,
+  selectionState,
+  entityKey,
+);
+const newEditorState = EditorState.set(editorState, {
+  currentContent: contentStateWithLink,
+});
+For a given range of text, then, you can extract its associated entity key by using the getEntityAt() method on a ContentBlock object, passing in the target offset value.
+
+const contentState = editorState.getCurrentContent();
+const blockWithLinkAtBeginning = contentState.getBlockForKey('...');
+const linkKey = blockWithLinkAtBeginning.getEntityAt(0);
+const linkInstance = contentState.getEntity(linkKey);
+const {url} = linkInstance.getData();
+"Mutability"#
+Entities may have one of three "mutability" values. The difference between them is the way they behave when the user makes edits to them.
+
+Note that DraftEntityInstance objects are always immutable Records, and this property is meant only to indicate how the annotated text may be "mutated" within the editor. (Future changes may rename this property to ward off potential confusion around naming.)
+
+Immutable#
+This text cannot be altered without removing the entity annotation from the text. Entities with this mutability type are effectively atomic.
+
+For instance, in a Facebook input, add a mention for a Page (e.g. Barack Obama). Then, either add a character within the mentioned text, or try to delete a character. Note that when adding or deleting characters, the entity is removed.
+
+This mutability value is useful in cases where the text absolutely must match its relevant metadata, and may not be altered.
+
+Mutable#
+This text may be altered freely. For instance, link text is generally intended to be "mutable" since the href and linkified text are not tightly coupled.
+
+Segmented#
+Entities that are "segmented" are tightly coupled to their text in much the same way as "immutable" entities, but allow customization via deletion.
+
+For instance, in a Facebook input, add a mention for a friend. Then, add a character to the text. Note that the entity is removed from the entire string, since your mentioned friend may not have their name altered in your text.
+
+Next, try deleting a character or word within the mention. Note that only the section of the mention that you have deleted is removed. In this way, we can allow short names for mentions.
+
+Modifying Entities#
+Since DraftEntityInstance records are immutable, you may not update the data property on an instance directly.
+
+Instead, two Entity methods are available to modify entities: mergeData and replaceData. The former allows updating data by passing in an object to merge, while the latter completely swaps in the new data object.
+
+Using Entities for Rich Content#
+The next article in this section covers the usage of decorator objects, which can be used to retrieve entities for rendering purposes.
+
+The link editor example provides a working example of entity creation and decoration in use.`,
+`Decorators
+Inline and block styles aren't the only kind of rich styling that we might want to add to our editor. The Facebook comment input, for example, provides blue background highlights for mentions and hashtags.
+
+To support flexibility for custom rich text, Draft provides a "decorator" system. The tweet example offers a live example of decorators in action.
+
+CompositeDecorator#
+The decorator concept is based on scanning the contents of a given ContentBlock for ranges of text that match a defined strategy, then rendering them with a specified React component.
+
+You can use the CompositeDecorator class to define your desired decorator behavior. This class allows you to supply multiple DraftDecorator objects, and will search through a block of text with each strategy in turn.
+
+Decorators are stored within the EditorState record. When creating a new EditorState object, e.g. via EditorState.createEmpty(), a decorator may optionally be provided.
+
+Under the hood
+
+When contents change in a Draft editor, the resulting EditorState object will evaluate the new ContentState with its decorator, and identify ranges to be decorated. A complete tree of blocks, decorators, and inline styles is formed at this time, and serves as the basis for our rendered output.
+
+In this way, we always ensure that as contents change, rendered decorations are in sync with our EditorState.
+
+In the "Tweet" editor example, for instance, we use a CompositeDecorator that searches for @-handle strings as well as hashtag strings:
+
+const compositeDecorator = new CompositeDecorator([
+  {
+    strategy: handleStrategy,
+    component: HandleSpan,
+  },
+  {
+    strategy: hashtagStrategy,
+    component: HashtagSpan,
+  },
+]);
+This composite decorator will first scan a given block of text for @-handle matches, then for hashtag matches.
+
+// Note: these aren't very good regexes, don't use them!
+const HANDLE_REGEX = /\@[\w]+/g;
+const HASHTAG_REGEX = /\#[\w\u0590-\u05ff]+/g;
+
+function handleStrategy(contentBlock, callback, contentState) {
+  findWithRegex(HANDLE_REGEX, contentBlock, callback);
+}
+
+function hashtagStrategy(contentBlock, callback, contentState) {
+  findWithRegex(HASHTAG_REGEX, contentBlock, callback);
+}
+
+function findWithRegex(regex, contentBlock, callback) {
+  const text = contentBlock.getText();
+  let matchArr, start;
+  while ((matchArr = regex.exec(text)) !== null) {
+    start = matchArr.index;
+    callback(start, start + matchArr[0].length);
+  }
+}
+The strategy functions execute the provided callback with the start and end values of the matching range of text.
+
+Decorator Components#
+For your decorated ranges of text, you must define a React component to use to render them. These tend to be plain span elements with CSS classes or styles applied to them.
+
+In our current example, the CompositeDecorator object names HandleSpan and HashtagSpan as the components to use for decoration. These are basic stateless components:
+
+const HandleSpan = props => {
+  return (
+    <span {...props} style={styles.handle}>
+      {props.children}
+    </span>
+  );
+};
+
+const HashtagSpan = props => {
+  return (
+    <span {...props} style={styles.hashtag}>
+      {props.children}
+    </span>
+  );
+};
+The Decorator Component will receive various pieces of metadata in props, including a copy of the contentState, the entityKey if there is one, and the blockKey. For a full list of props supplied to a Decorator Component see the DraftDecoratorComponentProps type.
+
+Note that props.children is passed through to the rendered output. This is done to ensure that the text is rendered within the decorated span.
+
+You can use the same approach for links, as demonstrated in our link example.
+
+Beyond CompositeDecorator#
+The decorator object supplied to an EditorState need only match the expectations of the DraftDecoratorType Flow type definition, which means that you can create any decorator classes you wish, as long as they match the expected type -- you are not bound by CompositeDecorator.
+
+Setting new decorators#
+Further, it is acceptable to set a new decorator value on the EditorState on the fly, during normal state propagation, through immutable means.
+
+This means that during your app workflow, if your decorator becomes invalid or requires a modification, you can create a new decorator object (or use null to remove all decorations) and EditorState.set() to make use of the new decorator setting.
+
+For example, if for some reason we wished to disable the creation of @-handle decorations while the user interacts with the editor, it would be fine to do the following:
+
+function turnOffHandleDecorations(editorState) {
+  const onlyHashtags = new CompositeDecorator([
+    {
+      strategy: hashtagStrategy,
+      component: HashtagSpan,
+    },
+  ]);
+  return EditorState.set(editorState, {decorator: onlyHashtags});
+}
+The ContentState for this editorState will be re-evaluated with the new decorator, and @-handle decorations will no longer be present in the next render pass.
+
+Again, this remains memory-efficient due to data persistence across immutable objects.`,
+`Key Bindings
+The Editor component offers flexibility to define custom key bindings for your editor, via the keyBindingFn prop. This allows you to match key commands to behaviors in your editor component.
+
+Defaults#
+The default key binding function is getDefaultKeyBinding.
+
+Since the Draft framework maintains tight control over DOM rendering and behavior, basic editing commands must be captured and routed through the key binding system.
+
+getDefaultKeyBinding maps known OS-level editor commands to DraftEditorCommand strings, which then correspond to behaviors within component handlers.
+
+For instance, Ctrl+Z (Win) and Cmd+Z (OSX) map to the 'undo' command, which then routes our handler to perform an EditorState.undo().
+
+Customization#
+You may provide your own key binding function to supply custom command strings.
+
+It is recommended that your function use getDefaultKeyBinding as a fall-through case, so that your editor may benefit from default commands.
+
+With your custom command string, you may then implement the handleKeyCommand prop function, which allows you to map that command string to your desired behavior. If handleKeyCommand returns 'handled', the command is considered handled. If it returns 'not-handled', the command will fall through.
+
+Example#
+Let's say we have an editor that should have a "Save" mechanism to periodically write your contents to the server as a draft copy.
+
+First, let's define our key binding function:
+
+import {getDefaultKeyBinding, KeyBindingUtil} from 'draft-js';
+const {hasCommandModifier} = KeyBindingUtil;
+
+function myKeyBindingFn(e: SyntheticKeyboardEvent): string | null {
+  if (e.keyCode === 83 /* S key */ && hasCommandModifier(e)) {
+    return 'myeditor-save';
+  }
+  return getDefaultKeyBinding(e);
+}
+Our function receives a key event, and we check whether it matches our criteria: it must be an S key, and it must have a command modifier, i.e. the command key for OSX, or the control key otherwise.
+
+If the command is a match, return a string that names the command. Otherwise, fall through to the default key bindings.
+
+In our editor component, we can then make use of the command via the handleKeyCommand prop:
+
+import {Editor} from 'draft-js';
+class MyEditor extends React.Component {
+
+  constructor(props) {
+    super(props);
+    this.handleKeyCommand = this.handleKeyCommand.bind(this);
+  }
+  // ...
+
+  handleKeyCommand(command: string): DraftHandleValue {
+    if (command === 'myeditor-save') {
+      // Perform a request to save your contents, set
+      // a new editorState, etc.
+      return 'handled';
+    }
+    return 'not-handled';
+  }
+
+  render() {
+    return (
+      <Editor
+        editorState={this.state.editorState}
+        handleKeyCommand={this.handleKeyCommand}
+        keyBindingFn={myKeyBindingFn}
+        ...
+      />
+    );
+  }
+}
+The 'myeditor-save' command can be used for our custom behavior, and returning 'handled' instructs the editor that the command has been handled and no more work is required.
+
+By returning 'not-handled' in all other cases, default commands are able to fall through to default handler behavior.`,
+`Managing Focus
+Managing text input focus can be a tricky task within React components. The browser focus/blur API is imperative, so setting or removing focus via declarative means purely through render() tends to feel awkward and incorrect, and it requires challenging attempts at controlling focus state.
+
+With that in mind, at Facebook we often choose to expose focus() methods on components that wrap text inputs. This breaks the declarative paradigm, but it also simplifies the work needed for engineers to successfully manage focus behavior within their apps.
+
+The Editor component follows this pattern, so there is a public focus() method available on the component. This allows you to use a ref within your higher-level component to call focus() directly on the component when needed.
+
+The event listeners within the component will observe focus changes and propagate them through onChange as expected, so state and DOM will remain correctly in sync.
+
+Translating container clicks to focus#
+Your higher-level component will most likely wrap the Editor component in a container of some kind, perhaps with padding to style it to match your app.
+
+By default, if a user clicks within this container but outside of the rendered Editor while attempting to focus the editor, the editor will have no awareness of the click event. It is therefore recommended that you use a click listener on your container component, and use the focus() method described above to apply focus to your editor.
+
+The plaintext editor example, for instance, uses this pattern.`,
+`Block Styling
+Within Editor, some block types are given default CSS styles to limit the amount of basic configuration required to get engineers up and running with custom editors.
+
+By defining a blockStyleFn prop function for an Editor, it is possible to specify classes that should be applied to blocks at render time.
+
+DraftStyleDefault.css#
+The Draft library includes default block CSS styles within DraftStyleDefault.css. (Note that the annotations on the CSS class names are artifacts of Facebook's internal CSS module management system.)
+
+These CSS rules are largely devoted to providing default styles for list items, without which callers would be responsible for managing their own default list styles.
+
+blockStyleFn#
+The blockStyleFn prop on Editor allows you to define CSS classes to style blocks at render time. For instance, you may wish to style 'blockquote' type blocks with fancy italic text.
+
+function myBlockStyleFn(contentBlock) {
+  const type = contentBlock.getType();
+  if (type === 'blockquote') {
+    return 'superFancyBlockquote';
+  }
+}
+
+// Then...
+import {Editor} from 'draft-js';
+class EditorWithFancyBlockquotes extends React.Component {
+  render() {
+    return <Editor ... blockStyleFn={myBlockStyleFn} />;
+  }
+}
+Then, in your own CSS:
+
+Copy
+.superFancyBlockquote {
+  color: #999;
+  font-family: 'Hoefler Text', Georgia, serif;
+  font-style: italic;
+  text-align: center;
+}`,
+`Custom Block Rendering
+This article discusses how to customize Draft default block rendering. The block rendering is used to define supported block types and their respective renderers, as well as converting pasted content to known Draft block types.
+
+When pasting content, or when calling convertFromHTML, Draft will convert pasted content to the respective block rendering type by matching the Draft block render map with the matched tag.
+
+Draft default block render map#
+HTML element	Draft block type
+<h1/>	header-one
+<h2/>	header-two
+<h3/>	header-three
+<h4/>	header-four
+<h5/>	header-five
+<h6/>	header-six
+<blockquote/>	blockquote
+<pre/>	code-block
+<figure/>	atomic
+<li/>	unordered-list-item,ordered-list-item**
+<div/>	unstyled***
+** - Block type will be based on the parent <ul/> or <ol/>
+
+*** - Any block that is not recognized by the block rendering mapping will be treated as unstyled
+
+Configuring block render map#
+Draft's default block render map can be overwritten by passing an Immutable Map to the editor blockRender props.
+
+example of overwriting default block render map:
+
+// The example below deliberately only allows
+// 'heading-two' as the only valid block type and
+// updates the unstyled element to also become a h2.
+const blockRenderMap = Immutable.Map({
+  'header-two': {
+    element: 'h2'
+  },
+  'unstyled': {
+    element: 'h2'
+  }
+});
+
+class RichEditor extends React.Component {
+  render() {
+    return (
+      <Editor
+        ...
+        blockRenderMap={blockRenderMap}
+      />
+    );
+  }
+}
+There are cases where instead of overwriting the defaults, we only want to add new block types. This can be done by using the DefaultDraftBlockRenderMap reference to create a new blockRenderMap
+
+example of extending default block render map:
+
+const blockRenderMap = Immutable.Map({
+  'section': {
+    element: 'section'
+  }
+});
+
+// Include 'paragraph' as a valid block and updated the unstyled element but
+// keep support for other draft default block types
+const extendedBlockRenderMap = Draft.DefaultDraftBlockRenderMap.merge(blockRenderMap);
+
+class RichEditor extends React.Component {
+  render() {
+    return (
+      <Editor
+        ...
+        blockRenderMap={extendedBlockRenderMap}
+      />
+    );
+  }
+}
+When Draft parses pasted HTML, it maps from HTML elements back into Draft block types. If you want to specify other HTML elements that map to a particular block type, you can add the array aliasedElements to the block config.
+
+example of unstyled block type alias usage:
+
+'unstyled': {
+  element: 'div',
+  aliasedElements: ['p'],
+}
+Custom block wrappers#
+By default, the html element is used to wrap block types. However, a react component can also be provided to the blockRenderMap to wrap the EditorBlock.
+
+During pasting, or when calling convertFromHTML, the html will be scanned for matching tag elements. A wrapper will be used when there is a definition for it on the blockRenderMap to wrap that particular block type. For example:
+
+Draft uses wrappers to wrap <li/> inside either <ol/> or <ul/>, but wrappers can also be used to wrap any other custom block type.
+
+example of extending default block render map to use a react component for a custom block:
+
+Copy
+class MyCustomBlock extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+
+  render() {
+    return (
+      <div className='MyCustomBlock'>
+        {/* here, this.props.children contains a <section> container, as that was the matching element */}
+        {this.props.children}
+      </div>
+    );
+  }
+}
+
+const blockRenderMap = Immutable.Map({
+  'MyCustomBlock': {
+    // element is used during paste or html conversion to auto match your component;
+    // it is also retained as part of this.props.children and not stripped out
+    element: 'section',
+    wrapper: <MyCustomBlock />,
+  }
+});
+
+// keep support for other draft default block types and add our myCustomBlock type
+const extendedBlockRenderMap = Draft.DefaultDraftBlockRenderMap.merge(blockRenderMap);
+
+class RichEditor extends React.Component {
+  ...
+  render() {
+    return (
+      <Editor
+        ...
+        blockRenderMap={extendedBlockRenderMap}
+      />
+    );
+  }
+}`,
+`Custom Block Components
+Draft is designed to solve problems for straightforward rich text interfaces like comments and chat messages, but it also powers richer editor experiences like Facebook Notes.
+
+Users can embed images within their Notes, either loading from their existing Facebook photos or by uploading new images from the desktop. To that end, the Draft framework supports custom rendering at the block level, to render content like rich media in place of plain text.
+
+The TeX editor in the Draft repository provides a live example of custom block rendering, with TeX syntax translated on the fly into editable embedded formula rendering via the KaTeX library.
+
+A media example is also available, which showcases custom block rendering of audio, image, and video.
+
+By using a custom block renderer, it is possible to introduce complex rich interactions within the frame of your editor.
+
+Custom Block Components#
+Within the Editor component, one may specify the blockRendererFn prop. This prop function allows a higher-level component to define custom React rendering for ContentBlock objects, based on block type, text, or other criteria.
+
+For instance, we may wish to render ContentBlock objects of type 'atomic' using a custom MediaComponent.
+
+function myBlockRenderer(contentBlock) {
+  const type = contentBlock.getType();
+  if (type === 'atomic') {
+    return {
+      component: MediaComponent,
+      editable: false,
+      props: {
+        foo: 'bar',
+      },
+    };
+  }
+}
+
+// Then...
+import {Editor} from 'draft-js';
+class EditorWithMedia extends React.Component {
+  ...
+  render() {
+    return <Editor ... blockRendererFn={myBlockRenderer} />;
+  }
+}
+If no custom renderer object is returned by the blockRendererFn function, Editor will render the default EditorBlock text block component.
+
+The component property defines the component to be used, while the optional props object includes props that will be passed through to the rendered custom component via the props.blockProps sub property object. In addition, the optional editable property determines whether the custom component is contentEditable.
+
+It is strongly recommended that you use editable: false if your custom component will not contain text.
+
+If your component contains text as provided by your ContentState, your custom component should compose an EditorBlock component. This will allow the Draft framework to properly maintain cursor behavior within your contents.
+
+By defining this function within the context of a higher-level component, the props for this custom component may be bound to that component, allowing instance methods for custom component props.
+
+Defining custom block components#
+Within MediaComponent, the most likely use case is that you will want to retrieve entity metadata to render your custom block. You may apply an entity key to the text within a 'atomic' block during EditorState management, then retrieve the metadata for that key in your custom component render() code.
+
+class MediaComponent extends React.Component {
+  render() {
+    const {block, contentState} = this.props;
+    const {foo} = this.props.blockProps;
+    const data = contentState.getEntity(block.getEntityAt(0)).getData();
+    // Return a <figure> or some other content using this data.
+  }
+}
+The ContentBlock object and the ContentState record are made available within the custom component, along with the props defined at the top level. By extracting entity information from the ContentBlock and the Entity map, you can obtain the metadata required to render your custom component.
+
+Retrieving the entity from the block is admittedly a bit of an awkward API, and is worth revisiting.
+
+Recommendations and other notes#
+If your custom block renderer requires mouse interaction, it is often wise to temporarily set your Editor to readOnly={true} during this interaction. In this way, the user does not trigger any selection changes within the editor while interacting with the custom block. This should not be a problem with respect to editor behavior, since interacting with your custom block component is most likely mutually exclusive from text changes within the editor.
+
+The recommendation above is especially important for custom block renderers that involve text input, like the TeX editor example.
+
+It is also worth noting that within the Facebook Notes editor, we have not tried to perform any specific SelectionState rendering or management on embedded media, such as rendering a highlight on an embedded photo when selecting it. This is in part because of the rich interaction provided on the media itself, with resize handles and other controls exposed to mouse behavior.
+
+Since an engineer using Draft has full awareness of the selection state of the editor and full control over native Selection APIs, it would be possible to build selection behavior on static embedded media if desired. So far, though, we have not tried to solve this at Facebook, so we have not packaged solutions for this use case into the Draft project at this time.`,
+`Complex Inline Styles
+Within your editor, you may wish to provide a wide variety of inline style behavior that goes well beyond the bold/italic/underline basics. For instance, you may want to support variety with color, font families, font sizes, and more. Further, your desired styles may overlap or be mutually exclusive.
+
+The Rich Editor and Colorful Editor examples demonstrate complex inline style behavior in action.
+
+Model#
+Within the Draft model, inline styles are represented at the character level, using an immutable OrderedSet to define the list of styles to be applied to each character. These styles are identified by string. (See CharacterMetadata for details.)
+
+For example, consider the text "Hello world". The first six characters of the string are represented by the empty set, OrderedSet(). The final five characters are represented by OrderedSet.of('BOLD'). For convenience, we can think of these OrderedSet objects as arrays, though in reality we aggressively reuse identical immutable objects.
+
+In essence, our styles are:
+
+[
+  [], // H
+  [], // e
+  // ...
+  ['BOLD'], // w
+  ['BOLD'], // o
+  // etc.
+];
+Overlapping Styles#
+Now let's say that we wish to make the middle range of characters italic as well: Hello world. This operation can be performed via the Modifier API.
+
+The end result will accommodate the overlap by including 'ITALIC' in the relevant OrderedSet objects as well.
+
+[
+  [], // H
+  [], // e
+  ['ITALIC'], // l
+  // ...
+  ['BOLD', 'ITALIC'], // w
+  ['BOLD', 'ITALIC'], // o
+  ['BOLD'], // r
+  // etc.
+];
+When determining how to render inline-styled text, Draft will identify contiguous ranges of identically styled characters and render those characters together in styled span nodes.
+
+Mapping a style string to CSS#
+By default, Editor provides support for a basic list of inline styles: 'BOLD', 'ITALIC', 'UNDERLINE', and 'CODE'. These are mapped to plain CSS style objects, which are used to apply styles to the relevant ranges.
+
+For your editor, you may define custom style strings to include with these defaults, or you may override the default style objects for the basic styles.
+
+Within your Editor use case, you may provide the customStyleMap prop to define your style objects. (See Colorful Editor for a live example.)
+
+For example, you may want to add a 'STRIKETHROUGH' style. To do so, define a custom style map:
+
+import {Editor} from 'draft-js';
+
+const styleMap = {
+  'STRIKETHROUGH': {
+    textDecoration: 'line-through',
+  },
+};
+
+class MyEditor extends React.Component {
+  // ...
+  render() {
+    return (
+      <Editor
+        customStyleMap={styleMap}
+        editorState={this.state.editorState}
+        ...
+      />
+    );
+  }
+}
+When rendered, the textDecoration: line-through style will be applied to all character ranges with the STRIKETHROUGH style.`,
+`ested Lists
+The Draft framework provides support for nested lists, as demonstrated in the Facebook Notes editor. There, you can use Tab and Shift+Tab to add or remove depth to a list item.
+
+Implementation#
+The RichUtils module provides a handy onTab method that manages this behavior, and should be sufficient for most nested list needs. You can use the onTab prop on your Editor to make use of this utility.
+
+By default, styling is applied to list items to set appropriate spacing and list style behavior, via DraftStyleDefault.css.
+
+Note that there is currently no support for handling depth for blocks of any type except 'ordered-list-item' and 'unordered-list-item'.`,
+`Text Direction
+Facebook supports dozens of languages, which means that our text inputs need to be flexible enough to handle considerable variety.
+
+For example, we want input behavior for RTL languages such as Arabic and Hebrew to meet users' expectations. We also want to be able to support editor contents with a mixture of LTR and RTL text.
+
+To that end, Draft uses a bidi algorithm to determine appropriate text alignment and direction on a per-block basis.
+
+Text is rendered with an LTR or RTL direction automatically as the user types. You should not need to do anything to set direction yourself.
+
+Text Alignment#
+While languages are automatically aligned to the left or right during composition, as defined by the content characters, it is also possible for engineers to manually set the text alignment for an editor's contents.
+
+This may be useful, for instance, if an editor requires strictly centered contents, or needs to keep text aligned flush against another UI element.
+
+The Editor component therefore provides a textAlignment prop, with a small set of values: 'left', 'center', and 'right'. Using these values, the contents of your editor will be aligned to the specified direction regardless of language and character set.`,
+`EditorState Race Conditions
+Draft Editor is a controlled input component (you can read about this in detail in the API Basics section), meaning that changes made to the Editor state are propagated upwards through onChange and it's up to the app to feed it back to the Editor component.
+
+This cycle usually looks like:
+
+...
+this.onChange = function(editorState) {
+  this.setState({editorState: editorState});
+}
+...
+<Editor
+  editorState={this.state.editorState}
+  onChange={this.onChange}
+  placeholder="Enter some text..."
+/>
+Different browser events can trigger the Editor to create a new state and call onChange. For instance, when the user pastes text into it, Draft parses the new content and creates the necessary data structure to represent it.
+
+This cycle works great, however, it is an asynchronous operation because of the setState call. This introduces a delay between setting the state and rendering the Editor with the new state. During this time period other JS code can be executed.
+
+Race condition diagram 1
+
+Non-atomic operations like this can potentially introduce race conditions. Here's an example: Suppose you want to remove all the text styles that come from the paste. This can be implemented by listening to the onPaste event and removing all styles from the EditorState:
+
+this.onPaste = function() {
+  this.setState({
+    editorState: removeEditorStyles(this.state.editorState),
+  });
+};
+However, this won't work as expected. You now have two event handlers that set a new EditorState in the exact same browser event. Since the event handlers will run one after the other only the last setState will prevail. Here's how it looks like in the JS timeline:
+
+Race condition diagram 2
+
+As you can see, since setState is an asynchronous operation, the second setState will override whatever it was set on the first one making the Editor lose all the contents from the pasted text.
+
+You can observe and explore the race condition in this running example. The example also has logging to highlight the JS timeline so make sure to open the developer tools.
+
+As a rule of thumb avoid having different event handlers for the same event that manipulate the EditorState. Using setTimeout to run setState might also land you in the same situation. Anytime you feel you're “losing state” make sure you're not overriding it before the Editor re-rendering.
+
+Best Practices#
+Now that you understand the problem, what can you do to avoid it? In general be mindful of where you're getting the EditorState from. If you're using a local one (stored in this.state) then there's the potential for it to not be up to date. To minimize this problem Draft offers the latest EditorState instance in most of its callback functions. In your code you should use the provided EditorState instead of your local one to make sure you're basing your changes on the latest one. Here's a list of supported callbacks on the Editor:
+
+handleReturn(event, editorState)
+handleKeyCommand(command, editorState)
+handleBeforeInput(chars, editorState)
+handlePastedText(text, html, editorState)
+The paste example can then be re-written in a race condition free way by using these methods:
+
+this.handlePastedText = (text, styles, editorState) => {
+  this.setState({
+    editorState: removeEditorStyles(text, editorState),
+  });
+};
+//...
+<Editor
+  editorState={this.state.editorState}
+  onChange={this.onChange}
+  handlePastedText={this.handlePastedText}
+  placeholder="Enter some text..."
+/>;
+With handlePastedText you can implement the paste behavior by yourself.
+
+NOTE: If you need to have this behavior in your Editor, you can achieve it by setting the Editor's stripPastedStyles property to true.`,
+`Issues and Pitfalls
+This article addresses some known issues with the Draft editor framework, as well as some common pitfalls that we have encountered while using the framework at Facebook.
+
+Common Pitfalls#
+Delayed state updates#
+A common pattern for unidirectional data management is to batch or otherwise delay updates to data stores, using a setTimeout or another mechanism. Stores are updated, then emit changes to the relevant React components to propagate re-rendering.
+
+When delays are introduced to a React application with a Draft editor, however, it is possible to cause significant interaction problems. This is because the editor expects immediate updates and renders that stay in sync with the user's typing behavior. Delays can prevent updates from being propagated through the editor component tree, which can cause a disconnect between keystrokes and updates.
+
+To avoid this while still using a delaying or batching mechanism, you should separate the delay behavior from your Editor state propagation. That is, you must always allow your EditorState to propagate to your Editor component without delay, and independently perform batched updates that do not affect the state of your Editor component.
+
+Missing Draft.css#
+The Draft framework includes a handful of CSS resources intended for use with the editor, available in a single file via the build, Draft.css.
+
+This CSS should be included when rendering the editor, as these styles set defaults for text alignment, spacing, and other important features. Without it, you may encounter issues with block positioning, alignment, and cursor behavior.
+
+If you choose to write your own CSS independent of Draft.css, you will most likely need to replicate much of the default styling.
+
+Known Issues#
+Custom OSX Keybindings#
+Because the browser has no access to OS-level custom keybindings, it is not possible to intercept edit intent behaviors that do not map to default system key bindings.
+
+The result of this is that users who use custom keybindings may encounter issues with Draft editors, since their key commands may not behave as expected.
+
+Browser plugins/extensions#
+As with any React application, browser plugins and extensions that modify the DOM can cause Draft editors to break.
+
+Grammar checkers, for instance, may modify the DOM within contentEditable elements, adding styles like underlines and backgrounds. Since React cannot reconcile the DOM if the browser does not match its expectations, the editor state may fail to remain in sync with the DOM.
+
+Certain old ad blockers are also known to break the native DOM Selection API -- a bad idea no matter what! -- and since Draft depends on this API to maintain controlled selection state, this can cause trouble for editor interaction.
+
+IME and Internet Explorer#
+As of IE11, Internet Explorer demonstrates notable issues with certain international input methods, most significantly Korean input.
+
+Polyfills#
+Some of Draft's code and that of its dependencies make use of ES2015 language features. Syntax features like class are compiled away via Babel when Draft is built, but it does not include polyfills for APIs now included in many modern browsers (for instance: String.prototype.startsWith). We expect your browser supports these APIs natively or with the assistance of a polyfill. One such polyfill is es6-shim, which we use in many examples but you are free to use babel-polyfill if that's more your scene.
+
+When using either polyfill/shim, you should include it as early as possible in your application's entrypoint (at the very minimum, before you import Draft). For instance, using create-react-app and targeting IE11, src/index.js is probably a good spot to import your polyfill:
+
+src/index.js
+
+import 'babel-polyfill';
+// or
+import 'es6-shim';
+
+import React from 'react';
+import ReactDOM from 'react-dom';
+import App from './App';
+import './index.css';
+
+ReactDOM.render(<App />, document.getElementById('root'));
+Mobile Not Yet Supported#
+Draft.js is moving towards full mobile support, but does not officially support mobile browsers at this point. There are some known issues affecting Android and iOS - see issues tagged 'android' or 'ios' for the current status.`,
 ];
