@@ -1,9 +1,8 @@
 import './App.css';
 import { bookAdd } from './features/book/bookSlice'
 import { useAppDispatch, useAppSelector } from './app/hooks';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { data, StopWords } from './Const';
-const WordRange = 400;
 
 function App() {
 	const dispatch = useAppDispatch();
@@ -52,6 +51,14 @@ function BookRender({ book, wordStart, wordEnd, setNewBook }: { book: string, wo
 	const [input, setInput] = useState('');
 	const [wrongInputEnd, setWrongInputEnd] = useState('');
 	const [hint, setHint] = useState('');
+	const focusRef = useRef<HTMLParagraphElement>(null);
+	const bookRef = useRef<HTMLDivElement>(null);
+	const appRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (focusRef.current && appRef.current) {
+			appRef.current.scrollTop = focusRef.current?.offsetTop - window.innerHeight / 2;
+		}
+	});
 	if (wordStart === wordEnd) return <></>
 	const rightInput = book.slice(wordStart, wordEnd);
 	function updateInput(newChar: string) {
@@ -92,15 +99,21 @@ function BookRender({ book, wordStart, wordEnd, setNewBook }: { book: string, wo
 		}
 	};
 	return (
-		<div className="App">
-			<p className='context'>{book.slice(Math.max(0, wordStart - WordRange), wordStart)}</p>
+		<div className="app_wrapper" ref={appRef} >
+			<div className="app" >
+				<div className='scroller' ref={bookRef}>
+					<p className='context'>{book.slice(0, wordStart)}</p>
+					<p className='input' ref={focusRef}></p>
 			{input === rightInput ?
-				<p className='input_right'>{(input || wrongInputEnd) ? input : '...'}</p>
-				: <p className='input'>{(input || wrongInputEnd) ? input : '...'}</p>}
+						<p className='input_right'>{(input || wrongInputEnd) ? input : EmptyInput}</p>
+						: <p className='input'>{(input || wrongInputEnd) ? input : EmptyInput}</p>}
 			<p className='hint'>{(wrongInputEnd ? hint : '')}</p>
 			<p className='input_wrong'>{('' === wrongInputEnd ? '' : wrongInputEnd)}</p>
-			<p className='context'>{book.slice(wordEnd, Math.min(wordEnd + WordRange, book.length))}</p>
+					<p className='context'>{book.slice(wordEnd, book.length)}</p>
+				</div>
+			</div>
 		</div>
 	);
 }
+const EmptyInput = '[...]';
 export default App;

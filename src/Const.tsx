@@ -89,7 +89,7 @@ Advantages: A value type does not need extra garbage collection. It gets garbage
 Drawbacks:
 
 When large set of values are passed to a method the receiving variable actually copies so there are two redundant values in memory.
-As classes are missed out.it losses all the oop benifits
+As classes are missed out.it losses all the oop benefits
 Reference type - Holds a memory address of a value not value. Example - Class. Stored on heap
 Advantages:
 
