@@ -55,7 +55,7 @@ function BookRender({ book, wordStart, wordEnd, setNewBook }: { book: string, wo
 	const bookRef = useRef<HTMLDivElement>(null);
 	const appRef = useRef<HTMLDivElement>(null);
 	useEffect(() => {
-		if (focusRef.current && appRef.current) {
+		if (focusRef.current && appRef.current && focusRef.current?.offsetTop > window.innerHeight / 2) {
 			appRef.current.scrollTop = focusRef.current?.offsetTop - window.innerHeight / 2;
 		}
 	});
@@ -104,11 +104,11 @@ function BookRender({ book, wordStart, wordEnd, setNewBook }: { book: string, wo
 				<div className='scroller' ref={bookRef}>
 					<p className='context'>{book.slice(0, wordStart)}</p>
 					<p className='input' ref={focusRef}></p>
-			{input === rightInput ?
+					{input === rightInput ?
 						<p className='input_right'>{(input || wrongInputEnd) ? input : EmptyInput}</p>
 						: <p className='input'>{(input || wrongInputEnd) ? input : EmptyInput}</p>}
-			<p className='hint'>{(wrongInputEnd ? hint : '')}</p>
-			<p className='input_wrong'>{('' === wrongInputEnd ? '' : wrongInputEnd)}</p>
+					<p className='hint'>{(wrongInputEnd ? hint : '')}</p>
+					<p className='input_wrong'>{('' === wrongInputEnd ? '' : wrongInputEnd)}</p>
 					<p className='context'>{book.slice(wordEnd, book.length)}</p>
 				</div>
 			</div>
