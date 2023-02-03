@@ -986,4 +986,13 @@ import './index.css';
 ReactDOM.render(<App />, document.getElementById('root'));
 Mobile Not Yet Supported#
 Draft.js is moving towards full mobile support, but does not officially support mobile browsers at this point. There are some known issues affecting Android and iOS - see issues tagged 'android' or 'ios' for the current status.`,
+`Generator Functions: Functions that can return multiple values at different time interval as per the user demands, and can manage its internal state are generator functions. A function becomes a Generator function if it uses the function* syntax. They are different from normal functions because normal functions completion in a single run, whereas we can pause and resume the generator function.
+
+Note: When generator functions are executed, it returns a new Generator object.
+
+functionality:  yield and await can both be used to write asynchronous code that “waits”, which means code that looks as if it was synchronous, even though it really is asynchronous.
+
+await: This is an operator which used to wait for a Promise. In our regular JavaScript code, we use it inside the async function, and it can be used on its own with JavaScript modules.
+
+When we use await keyword in an expression so, the async function execution will get paused until the promise is settled (that is, fulfilled or rejected), and to resume execution of the async function after fulfilment. When resumed, the value of the await expression is that of the fulfilled Promise.`,
 ];

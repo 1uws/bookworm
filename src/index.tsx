@@ -5,6 +5,9 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { store } from './app/store'
 import { Provider } from 'react-redux'
+import { CssVarsProvider } from '@mui/joy/styles';
+import CssBaseline from '@mui/joy/CssBaseline';
+import GlobalStyles from '@mui/joy/GlobalStyles';
 
 const root = ReactDOM.createRoot(
 	document.getElementById('root') as HTMLElement
@@ -12,7 +15,23 @@ const root = ReactDOM.createRoot(
 root.render(
 	<Provider store={store}>
 		<React.StrictMode>
-			<App />
+			<CssVarsProvider>
+				{/* must be used under CssVarsProvider */}
+				<CssBaseline />
+				<GlobalStyles
+					styles={{
+						// CSS object styles
+						html: {
+							// backgroundColor: '#121212'
+						},
+						body: {
+							// ...
+						},
+					}}
+				/>
+				{/* The rest of your application */}
+				<App />
+			</CssVarsProvider>
 		</React.StrictMode>
 	</Provider>
 );
