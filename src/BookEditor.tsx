@@ -1,10 +1,12 @@
 import { Button } from '@mui/joy';
 import Textarea from '@mui/joy/Textarea';
 import { useEffect, useRef, useState } from 'react';
-export default function BookEditor({ book, onBookChanged, onBookDeleted, onRequestNewBook }: { book: string, onBookChanged: (arg0: string) => void, onBookDeleted: () => void, onRequestNewBook: () => void }) {
-	const [content, setContent] = useState(book);
+import { IBook } from './features/book/bookSlice';
+export default function BookEditor({ book, onBookChanged, onBookDeleted, onRequestNewBook }: { book: IBook, onBookChanged: (arg0: IBook) => void, onBookDeleted: () => void, onRequestNewBook: () => void }) {
+	const [title, setTitle] = useState(book.name);
+	const [content, setContent] = useState(book.text);
 	function onSave() {
-		onBookChanged(content);
+		onBookChanged({ name: title, text: content });
 	}
 	function onDelete() {
 		onBookDeleted();
@@ -15,7 +17,13 @@ export default function BookEditor({ book, onBookChanged, onBookDeleted, onReque
 	return (
 		<div className='editor_container'>
 			<Textarea
-				// ref={textareaRef}
+				value={title}
+				onChange={(textarea) => setTitle(textarea.target.value)}
+				minRows={1}
+				size='lg'
+				color='neutral'
+			/>
+			<Textarea
 				value={content}
 				onChange={(textarea) => setContent(textarea.target.value)}
 				// minRows={2}
