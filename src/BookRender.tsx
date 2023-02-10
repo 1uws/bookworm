@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { IBook } from "./features/book/bookSlice";
 
+const INPUT_TIMEOUT = 5000;
+
 export default function BookRender({ book, wordStart, wordEnd, setNewBook, enterEditor }: { book: IBook, wordStart: number, wordEnd: number, setNewBook: () => void, enterEditor: () => void }) {
 	const [input, setInput] = useState('');
 	const [wrongInputEnd, setWrongInputEnd] = useState('');
@@ -8,8 +10,8 @@ export default function BookRender({ book, wordStart, wordEnd, setNewBook, enter
 	const focusRef = useRef<HTMLParagraphElement>(null);
 	const bookRef = useRef<HTMLDivElement>(null);
 	const appRef = useRef<HTMLDivElement>(null);
+	const rightInput = book.text.slice(wordStart, wordEnd);
 	useEffect(() => {
-
 		setTimeout(() => {
 			if (focusRef.current && appRef.current) {
 				if (focusRef.current?.offsetTop > window.innerHeight / 2) {
@@ -19,14 +21,16 @@ export default function BookRender({ book, wordStart, wordEnd, setNewBook, enter
 					// setInput(() => input);
 				}
 			}
-		console.log(appRef.current?.scrollTop, focusRef.current?.offsetTop, window.innerHeight / 2);
-	}, 500);
-		// else {
-		// 	setInput(() => '');
-		// }
+			console.log(appRef.current?.scrollTop, focusRef.current?.offsetTop, window.innerHeight / 2);
+		}, 200);
 	});
+	useEffect(() => {
+		setTimeout(() => {
+			console.log('time out');
+			setInput(() => rightInput);
+		}, INPUT_TIMEOUT);
+	}, [wordStart]);
 	if (wordStart === wordEnd) return <></>
-	const rightInput = book.text.slice(wordStart, wordEnd);
 	function updateInput(newChar: string) {
 		if ((' ' === newChar) && (input === rightInput)) {
 			setInput(() => '');
