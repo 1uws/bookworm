@@ -1,6 +1,6 @@
 import { Button } from '@mui/joy';
 import Textarea from '@mui/joy/Textarea';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { IBook } from './features/book/bookSlice';
 export default function BookEditor({ book, onBookChanged, onBookDeleted, onRequestNewBook }: { book: IBook, onBookChanged: (arg0: IBook) => void, onBookDeleted: () => void, onRequestNewBook: () => void }) {
 	const [title, setTitle] = useState(book.name);
