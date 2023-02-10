@@ -26,10 +26,9 @@ export default function BookRender({ book, wordStart, wordEnd, setNewBook, enter
 	});
 	useEffect(() => {
 		setTimeout(() => {
-			console.log('time out');
 			setInput(() => rightInput);
 		}, INPUT_TIMEOUT);
-	}, [wordStart]);
+	}, [wordStart, rightInput]);
 	if (wordStart === wordEnd) return <></>
 	function updateInput(newChar: string) {
 		if ((' ' === newChar) && (input === rightInput)) {
