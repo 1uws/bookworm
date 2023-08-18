@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IBook } from "./features/book/bookSlice";
 
-const INPUT_TIMEOUT = 5000;
+// const INPUT_TIMEOUT = 5000;
 
 export default function BookRender({ book, wordStart, wordEnd, setNewBook, enterEditor }: { book: IBook, wordStart: number, wordEnd: number, setNewBook: () => void, enterEditor: () => void }) {
 	const [input, setInput] = useState('');
@@ -24,11 +24,11 @@ export default function BookRender({ book, wordStart, wordEnd, setNewBook, enter
 			console.log(appRef.current?.scrollTop, focusRef.current?.offsetTop, window.innerHeight / 2);
 		}, 200);
 	});
-	useEffect(() => {
-		setTimeout(() => {
-			setInput(() => rightInput);
-		}, INPUT_TIMEOUT);
-	}, [wordStart, rightInput]);
+	// useEffect(() => {
+	// 	setTimeout(() => { // need to cancel timeout
+	// 		setInput(() => rightInput);
+	// 	}, INPUT_TIMEOUT);
+	// }, [wordStart, rightInput]);
 	if (wordStart === wordEnd) return <></>
 	function updateInput(newChar: string) {
 		if ((' ' === newChar) && (input === rightInput)) {
@@ -65,7 +65,6 @@ export default function BookRender({ book, wordStart, wordEnd, setNewBook, enter
 			}
 		}
 	}
-	// window.addEventListener('keydown', (onkeydown_keyEvent) => {
 	window.onkeydown = (onkeydown_keyEvent) => {
 		if ((1 === onkeydown_keyEvent.key.length)) {
 			updateInput(onkeydown_keyEvent.key);
@@ -80,7 +79,6 @@ export default function BookRender({ book, wordStart, wordEnd, setNewBook, enter
 					break;
 			}
 		}
-		// });
 	}
 	return (
 		<div>

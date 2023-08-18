@@ -6,7 +6,7 @@ export interface IBook {
 	text: string,
 };
 export interface IBookShelf {
-	[bookname: string]: string,
+	[bookName: string]: string,
 }
 export const bookSlice = createSlice({
 	name: 'book',
@@ -32,6 +32,11 @@ export const bookSlice = createSlice({
 			const submitedBook: IBook = action.payload;
 			state.value[submitedBook.name] = submitedBook.text;
 			db.writeToPath(submitedBook.name, submitedBook.text);
+		},
+		bookRequestDelete: (state, action) => {
+			const bookName: string = action.payload;
+			delete (state.value)[bookName];
+			db.writeToPath(bookName, null);
 		},
 	},
 },

@@ -33,7 +33,7 @@ export default function Book() {
 			}) as { word: string, index: number }
 		).filter(regexWord => !StopWords.includes(regexWord.word));
 		const cutWord = list[Math.floor(Math.random() * list.length)];
-		if (!cutWord){ // have content but no meaningful words...
+		if (!cutWord) { // have content but no meaningful words...
 			return;
 		}
 		setWordStart(() => cutWord.index);
@@ -45,11 +45,15 @@ export default function Book() {
 	}
 	function onBookChanged(modifiedBook: IBook) {
 		dispatch(bookRequestWrite(modifiedBook));
+		onShowNew();
+	}
+	function onShowNew() {
 		setNewBook();
 		setMode(() => 'show');
 	}
 	function onBookDeleted() {
-
+		// dispatch(bookRequestWrite(modifiedBook));
+		onShowNew();
 	}
 	function onRequestNewBook() {
 		console.log('CREATE');
@@ -58,8 +62,7 @@ export default function Book() {
 	function onSubmitBook(submitedBook: IBook) {
 		console.log('SUBMIT');
 		dispatch(bookRequestWrite(submitedBook));
-		setNewBook();
-		setMode(() => 'show');
+		onShowNew();
 	}
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	useEffect(() => { setNewBook(); }, [bookList]);
@@ -81,6 +84,7 @@ export default function Book() {
 					onBookChanged={onBookChanged}
 					onBookDeleted={onBookDeleted}
 					onRequestNewBook={onRequestNewBook}
+					onEditorClosed={onShowNew}
 				/> : <></>}
 			{'create' === mode ?
 				<CreateBook

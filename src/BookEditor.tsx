@@ -2,7 +2,7 @@ import { Button } from '@mui/joy';
 import Textarea from '@mui/joy/Textarea';
 import { useState } from 'react';
 import { IBook } from './features/book/bookSlice';
-export default function BookEditor({ book, onBookChanged, onBookDeleted, onRequestNewBook }: { book: IBook, onBookChanged: (arg0: IBook) => void, onBookDeleted: () => void, onRequestNewBook: () => void }) {
+export default function BookEditor({ book, onBookChanged, onBookDeleted, onRequestNewBook }: { book: IBook, onBookChanged: (arg0: IBook) => void, onBookDeleted: () => void, onRequestNewBook: () => void, onEditorClosed: () => void }) {
 	const [title, setTitle] = useState(book.name);
 	const [content, setContent] = useState(book.text);
 	function onSave() {
@@ -13,6 +13,9 @@ export default function BookEditor({ book, onBookChanged, onBookDeleted, onReque
 	}
 	function onNew() {
 		onRequestNewBook();
+	}
+	function onCancel() {
+
 	}
 	return (
 		<div className='editor_container'>
@@ -33,6 +36,7 @@ export default function BookEditor({ book, onBookChanged, onBookDeleted, onReque
 			<Button color='success' variant='plain' onClick={onSave}>Save</Button>
 			<Button color='danger' variant='plain' onClick={onDelete}>Delete</Button>
 			<Button color='primary' variant='plain' onClick={onNew}>New</Button>
+			<Button color='primary' variant='plain' onClick={onCancel}>Cancel</Button>
 		</div>
 	);
 }
